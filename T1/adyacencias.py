@@ -1,3 +1,10 @@
+# Alumno: Raul Emiliano Labonne Arizmendi
+# Tarea 1
+# Procesamiento Digital de Imagenes
+# Ejercicio 1
+
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -29,20 +36,23 @@ img.save('imagen.png')
 
 def adyacenciaRegiones(imagen, fila, col):
     ady4, ady8 = False, False
+
+    # Lista para saber que pixeles tienen vecinos, ya sea 4 vecindad u 8 vecindad
     vecinos = []
 
+    # Verificamos la 4 vecindad del pixel
     for i in range(fila):
         if imagen[i][col] == 255:
             if imagen[i][col + 1] == 255:
                 vecinos.append((i, col))
-    print(vecinos)
+
+    # Verificamos si hay pixeles en la lista, si esta vacia, entonces no es 4 adyacente
     if not vecinos:
         ady4 = False
-        # print("R1 no es 4-adyacente a R2")
     else:
         ady4 = True
-        #print("R1 es 4-adyacente a R2")
 
+    # Checamos si hay pixeles con 8 vecindad verificando solamente si tienen 4 vecindad por esquinas
     vecinos = []
     for i in range(fila):
         if imagen[i][col] == 255:
@@ -51,8 +61,9 @@ def adyacenciaRegiones(imagen, fila, col):
 
             if diagonal_arriba or diagonal_abajo:
                 vecinos.append((i, col))
-    print(vecinos)
+
     ady8 = ady4 or bool(vecinos)
+    # Regresamos los resultados
     return ady4, ady8
 
 ady4, ady8 = adyacenciaRegiones(img_binaria, alto, 7)
