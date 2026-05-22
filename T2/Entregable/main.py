@@ -173,8 +173,8 @@ def main():
     # --------------------- Ejercicio 6  --------------------
 
     ruta = 'imagenes/ejercicio5/'
-    archivos = ['StoneBricksSplitface001_COL_2K']
-    imgs_arrays = [abrir(f"{ruta}/ejemplos/", f"{archivo}.jpg", float) for archivo in archivos]
+    archivos = ['prueba0', 'prueba1']
+    imgs_arrays = [abrir(f"{ruta}/ejemplos/", f"{archivo}.png", float) for archivo in archivos]
     i = 0
     for img in imgs_arrays:
         m,n = img.shape

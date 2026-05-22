@@ -22,7 +22,7 @@ class frecuencias:
         self.__img = self.__img * self.__centrado
 
         ## dft
-        #self.__F = fouriere.fourier_transform(self.__img)
+        #self.__F = fouriere.fourier_transform(self.__img) 
         self.__F = np.fft.fft2(self.__img)
         u = np.arange(self.P) - self.P // 2
         v = np.arange(self.Q) - self.Q // 2
