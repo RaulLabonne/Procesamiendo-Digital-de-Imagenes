@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.signal import convolve2d
+from skimage.color import rgb2gray
 from scipy.ndimage import label as ndlabel
+from skimage import exposure
 
 
 def slic (input, nsp):
@@ -12,11 +14,15 @@ def slic (input, nsp):
     """
 
     # Inicializacion
-    H,W, _ = input.shape
+    H,W = input.shape
     nt = H * W
     s = int(np.sqrt(nt/nsp))
 
-    medias = initMedias(input, s, H, W)
+    img_mejorada = exposure.equalize_adapthist(input) * 255.0
+
+    #
+
+    medias = initMedias(img_mejorada, s, H, W)
 
     etiquetas = np.full((H,W), -1, dtype=int)
     distancias = np.full((H,W), np.inf)
@@ -31,11 +37,12 @@ def slic (input, nsp):
         distancias[:] = np.inf  # resetear cada iteración
         #etiquetas[:] = -1       # resetear cada iteración
         medias_anteriores = np.copy(medias)
+
         for i, media in enumerate(medias):
 
             ## Asignacion de etiquetas
 
-            cx, cy = int(media[3]), int(media[4])
+            cx, cy = int(media[1]), int(media[2])
 
             x_min = max(cx - s, 0)
             x_max = min(cx + s, H)
@@ -45,8 +52,11 @@ def slic (input, nsp):
             for x in range(x_min, x_max):
                 for y in range(y_min, y_max):
 
-                    r_p, g_p, b_p = input[x, y]
-                    pixel = [r_p, g_p, b_p, x, y]
+                    if (x - cx) ** 2 + (y - cy) ** 2 > s ** 2:
+                        continue
+
+                    gris = img_mejorada[x, y]
+                    pixel = [gris, x, y]
 
                     D = distancia(pixel, media, s, c)
 
@@ -58,13 +68,13 @@ def slic (input, nsp):
             mask = (etiquetas == i)
 
             if np.any(mask):
-                mi = np.mean(input[mask], axis = 0)
+                mi = np.mean(img_mejorada[mask])
 
                 cx, cy = np.nonzero(mask)
                 x_prom = np.mean(cx)
                 y_prom = np.mean(cy)
 
-                medias[i] = [mi[0], mi[1], mi[2], x_prom, y_prom]
+                medias[i] = [mi, x_prom, y_prom]
 
         diferencias = medias - medias_anteriores
         error = np.sum(np.linalg.norm(diferencias, axis=1))
@@ -103,8 +113,7 @@ def calcular_gradiente_2d(img_gris):
 
 
 def initMedias(input, s, H, W):
-    img_gris = np.mean(input, axis=2)
-    gradiantes = calcular_gradiente_2d(img_gris)
+    gradiantes = calcular_gradiente_2d(input)
     medias = []
 
     for cx in range(s // 2, H, s):
@@ -121,17 +130,19 @@ def initMedias(input, s, H, W):
             mejor_x = x_min + min_local[0]
             mejor_y = y_min + min_local[1]
 
-            r,g,b = input[mejor_x, mejor_y]
+            gris = input[mejor_x, mejor_y]
 
-            medias.append([r, g, b, mejor_x, mejor_y])
+            medias.append([gris, mejor_x, mejor_y])
     return np.array(medias)
 
-def distancia(pi, pj, s, c):
-    dc = np.sqrt((pi[0] - pj[0]) ** 2 + (pi[1] - pj[1]) ** 2 + (pi[2] - pj[2]) ** 2)
+def distancia(pi, pj, s, m):
+    dg = np.sqrt((pi[0] - pj[0]) ** 2)
 
-    ds = np.sqrt((pi[3] - pj[3]) ** 2 + (pi[4] - pj[4]) ** 2)
+    ds = np.sqrt((pi[1] - pj[1]) ** 2 + (pi[2] - pj[2]) ** 2)
 
-    D = np.sqrt((dc / c) ** 2 + (ds / s) ** 2)
+    a = s / m
+
+    D = np.sqrt(ds ** 2 + a * (dg ** 2))
 
     return D
 

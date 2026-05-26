@@ -1,5 +1,6 @@
 import slic
 import numpy as np
+from skimage.color import rgb2lab, lab2rgb
 from PIL import Image
 
 def main():
@@ -9,8 +10,12 @@ def main():
     array = np.array(image)
     #array = np.full_like(array1, 255)
 
-    nsp = 50
-    salida, bordes = slic.slic(array, nsp)
+    nsp = 64
+    lab = rgb2lab(array)
+    salida, bordes = slic.slic(lab, nsp)
+    salida = lab2rgb(salida)
+
+    salida = (salida * 255).astype(np.uint8)
 
     img_bordes = slic.dibujar_limites(array, bordes, [255,255,255])
 
