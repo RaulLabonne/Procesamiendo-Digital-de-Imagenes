@@ -5,13 +5,13 @@ from scipy.ndimage import label as ndlabel
 
 def slic (input, nsp):
     """
-
+    Algoritmo SLIC modificado para segmentacion de imagenes celulares
     :param input: La imagen a color de entrada.
     :param nsp: Numero de superpixeles
     :return: Imagen de etiquetas
     """
 
-    # Inicializacion
+    # Inicializacion de valores
     H,W, _ = input.shape
     nt = H * W
     s = int(np.sqrt(nt/nsp))
@@ -21,19 +21,19 @@ def slic (input, nsp):
     etiquetas = np.full((H,W), -1, dtype=int)
     distancias = np.full((H,W), np.inf)
 
-    # Algoritmo
-    tau = 1.0
-    error = np.inf
-    c = 10.0
-    iteracion = 0
+    # Algoritmo SLIC Modificado
+    tau = 1.0 # Umbral
+    error = np.inf # Convergencia
+    c = 10.0 # Valor C
+    iteracion = 0 # Limite de iteracion
     while error >= tau and iteracion < 10:
         iteracion += 1
-        distancias[:] = np.inf  # resetear cada iteración
+        distancias[:] = np.inf  # reseteamos para poder tener margen de mejora por cada cambio de medias
         #etiquetas[:] = -1       # resetear cada iteración
         medias_anteriores = np.copy(medias)
         for i, media in enumerate(medias):
 
-            ## Asignacion de etiquetas
+            ## 1: Asignacion de etiquetas
 
             cx, cy = int(media[3]), int(media[4])
 
@@ -42,6 +42,7 @@ def slic (input, nsp):
             y_min = max(cy - s, 0)
             y_max = min(cy + s, W)
 
+            # Iteramos sobre cada pixel de un superpixel
             for x in range(x_min, x_max):
                 for y in range(y_min, y_max):
 
@@ -54,6 +55,7 @@ def slic (input, nsp):
                         etiquetas[x, y] = i
                         distancias[x, y] = D
 
+        # 2: Actualizacion de representantes
         for i in range(len(medias)):
             mask = (etiquetas == i)
 
@@ -66,6 +68,7 @@ def slic (input, nsp):
 
                 medias[i] = [mi[0], mi[1], mi[2], x_prom, y_prom]
 
+        # 3: Verificacion de convergencia
         diferencias = medias - medias_anteriores
         error = np.sum(np.linalg.norm(diferencias, axis=1))
 
@@ -80,6 +83,7 @@ def slic (input, nsp):
     etiquetas = enforce_connectivity(etiquetas, H, W)
     etiquetas = relabel_sequential_manual(etiquetas)
 
+    # Imagen de salida
     output = np.zeros_like(input)
 
     for i in np.unique(etiquetas):
@@ -93,6 +97,11 @@ def slic (input, nsp):
 
 
 def calcular_gradiente_2d(img_gris):
+    """
+    Funcion que devuelve la gradiante de una imagen
+    :param img_gris:  La region de la imagen gris a sacar la gradiante
+    :return: La gradiante
+    """
     Kx = np.array([[-1, 0, 1],
                    [-2, 0, 2],
                    [-1, 0, 1]], dtype=np.float32)
@@ -103,10 +112,19 @@ def calcular_gradiente_2d(img_gris):
 
 
 def initMedias(input, s, H, W):
+    """
+    Inicializa las medias necesarias para el algoritmo SLIC
+    :param input: La imagen mejorada
+    :param s: Numero de superpixeles
+    :param H: Altura de la imagen
+    :param W: Anchura de la imagen
+    :return: Arreglo de las medias de cada superpixel
+    """
     img_gris = np.mean(input, axis=2)
     gradiantes = calcular_gradiente_2d(img_gris)
     medias = []
 
+    # Tomamos el pixel central de cada superpixel
     for cx in range(s // 2, H, s):
         for cy in range(s // 2, W, s):
             x_min = max(cx - 1, 0)
@@ -127,6 +145,14 @@ def initMedias(input, s, H, W):
     return np.array(medias)
 
 def distancia(pi, pj, s, c):
+    """
+    Calcula la distancia entre dos vectores de pixeles
+    :param pi: Pixel i
+    :param pj: Pixel j
+    :param s: numero de superpixeles
+    :param c: valor arbitrario
+    :return: Distancia entre el pixel i y j
+    """
     dc = np.sqrt((pi[0] - pj[0]) ** 2 + (pi[1] - pj[1]) ** 2 + (pi[2] - pj[2]) ** 2)
 
     ds = np.sqrt((pi[3] - pj[3]) ** 2 + (pi[4] - pj[4]) ** 2)
@@ -142,30 +168,35 @@ def dibujar_limites(imagen_original, etiquetas, color_borde=[0, 0, 0]):
 
     :param imagen_original: La imagen original a color.
     :param etiquetas: La matriz de etiquetas devuelta por SLIC.
-    :param color_borde: Color del borde en formato [R, G, B] (por defecto negro).
-    :return: Nueva imagen con los bordes dibujados.
+    :param color_borde: Color del borde en formato [R, G, B].
+    :return: Imagen con los bordes dibujados.
     """
-    # Creamos una máscara booleana vacía (puros Falsos)
+    # Creamos una máscara booleana vacía
     bordes = np.zeros(etiquetas.shape, dtype=bool)
 
     # Comparamos la matriz de etiquetas consigo misma, pero desplazada 1 píxel.
     # Si la etiqueta cambia respecto al vecino, marcamos True (es un borde).
 
-    # Comparar con el vecino de abajo
     bordes[:-1, :] |= (etiquetas[:-1, :] != etiquetas[1:, :])
 
-    # Comparar con el vecino de la derecha
     bordes[:, :-1] |= (etiquetas[:, :-1] != etiquetas[:, 1:])
 
     # Hacemos una copia de la imagen para no rayar la original
     imagen_con_bordes = np.copy(imagen_original)
 
-    # Donde la máscara sea True, pintamos el píxel con el color del borde
+    # Si la máscara es True, pintamos el píxel con el color del borde
     imagen_con_bordes[bordes] = color_borde
 
     return imagen_con_bordes
 
 def enforce_connectivity(etiquetas, H, W):
+    """
+    Fuerza la conectividad entre regiones y pixeles huerfanos
+    :param etiquetas: Imagen de etiquetas
+    :param H: Alturea de la imagen
+    :param W: Anchura de la imagen
+    :return: Imagen con reduccion de pixeles huerfanos
+    """
     nueva_etiqueta = np.copy(etiquetas)
     segment_size = np.bincount(etiquetas.ravel())
 
@@ -203,7 +234,11 @@ def enforce_connectivity(etiquetas, H, W):
 
 
 def relabel_sequential_manual(etiquetas):
-    """Renumera etiquetas a 0,1,2,... sin huecos."""
+    """
+    Reenumera las etiqueta de la imagen
+    :param etiquetas: Imagen de etiquetas
+    :return: Imagen de etiquetas con renumeracion de las mismas a 0,1,2,... sin huecos.
+    """
     unicas = np.unique(etiquetas)
     mapping = {v: i for i, v in enumerate(unicas)}
     resultado = np.copy(etiquetas)
